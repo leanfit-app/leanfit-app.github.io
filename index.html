@@ -894,17 +894,10 @@ function latestBf(){ const ks=Object.keys(S.bodyfat).sort().reverse(); return ks
 function prevBf(){ const ks=Object.keys(S.bodyfat).sort().reverse().filter(k=>k!==todayKey()); return ks.length?S.bodyfat[ks[0]]:null; }
 
 /* ============ 코치 추천 — 단백질 우선 + 컨디션 반영 ============ */
-const COND_POOL = {
-  tired:  ["제육볶음","불고기","계란찜","연어","두부","현미밥","삶은계란"],   // 비타민B·철분
-  stress: ["순두부찌개","김치찌개","닭갈비","육개장","마라탕"],               // 맵지만 가볍게
-  refeed: ["흰쌀밥","고구마","바나나","우동","냉면","오트밀"]                  // 탄수 보충
-};
 function recommend(){
   if(!S.profile) return `⚙︎ 를 눌러 <b>내 목표</b>(칼로리·탄단지·목표체중)를 30초 만에 세팅하세요. 숫자 없이는 코칭도 없습니다.`;
   const t = macroTargets(), s = todaySum();
   const left = currentGoal() - s.k, pLeft = t.p - s.p;
-  const h = new Date().getHours();
-  const mealName = h<10?'아침':h<15?'점심':h<20?'저녁':'야식';
   const cond = S.condition[todayKey()];
   const adj = goalAdjust();
 
@@ -918,17 +911,9 @@ function recommend(){
   if(left <= 0) return prefix+`칼로리 <b>${-left} kcal</b> 초과. 내일 목표가 자동으로 조정되니 오늘은 잊으세요. 물 많이 드시고요.`;
   if(pLeft <= 0) return prefix+`단백질 목표 달성 💪 남은 <b>${left} kcal</b>은 자유 예산입니다.`;
 
-  const pool = cond && COND_POOL[cond] ? COND_POOL[cond] : null;
-  let picks = Object.entries(FOODS)
-    .map(([n,v])=>[n,...v])
-    .filter(([n,k,p])=>k<=left && (pool ? pool.includes(n) : p>=10));
-  picks = pool
-    ? picks.sort((a,b)=>a[1]-b[1]).slice(0,3)
-    : picks.sort((a,b)=>(b[2]/Math.max(b[1],1))-(a[2]/Math.max(a[1],1))).slice(0,3);
-  const pickStr = picks.map(([n,k,p])=>`<b>${n}</b>(${k}·${p}g)`).join(' / ');
-  if(!pool && pLeft > left/8)
-    return prefix+`단백질 <b>${pLeft}g</b> 부족 — 이게 오늘의 숙제입니다. ${mealName} 추천: ${pickStr}`;
-  return prefix+`<b>${left} kcal · P ${pLeft}g</b> 남음. ${mealName} 추천: ${pickStr}`;
+  if(pLeft > left/8)
+    return prefix+`<b>${left} kcal</b> 남음 · 단백질 <b>${pLeft}g</b> 부족 — 이게 오늘의 숙제입니다.`;
+  return prefix+`잘 가고 있습니다. <b>${left} kcal · P ${pLeft}g</b> 남았습니다.`;
 }
 
 /* ============ 스트릭 ============ */
