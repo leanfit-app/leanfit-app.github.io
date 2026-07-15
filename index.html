@@ -234,12 +234,8 @@
 
 <!-- HOME -->
 <div id="viewHome">
-  <div id="setupBanner" class="hidden" style="margin:8px 24px 0;">
-    <button style="width:100%;padding:18px;border-radius:16px;border:none;background:#111;color:#fff;font-size:15px;font-weight:700;cursor:pointer;text-align:left;line-height:1.5;" onclick="openSettings()">
-      👤 프로필부터 설정하세요 (30초)<br>
-      <span style="font-weight:500;font-size:13px;color:#98989f;">성별 · 나이 · 체지방 · 활동량 → 내 몸 기준 목표가 계산됩니다</span>
-    </button>
-  </div>
+  <div id="setupBanner" class="hidden" style="margin:8px 24px 0;"></div>
+  <div id="installTip" class="hidden" style="margin:10px 24px 0;"></div>
   <div class="hero">
     <div class="ring-wrap">
       <svg width="190" height="190" viewBox="0 0 190 190">
@@ -283,8 +279,9 @@
       <div class="stat"><div class="v" id="stBfChange">–</div><div class="l">14일 체지방</div></div>
     </div>
     <div class="chart-card">
-      <h4>몸무게</h4><div class="sub" id="wChartSub">최근 14일</div>
+      <h4>몸무게</h4><div class="sub" id="wChartSub">최근 14일 · 초록 점선 = 7일 평균 추세</div>
       <div id="weightChart"></div>
+      <div class="sub" id="wTrendNote" style="margin:8px 0 0;color:#3a3a3c;line-height:1.5;"></div>
     </div>
     <div class="chart-card" id="bfChartCard">
       <h4>체지방률</h4><div class="sub">최근 14일</div>
@@ -294,6 +291,7 @@
       <h4>칼로리</h4><div class="sub">최근 7일 · 선 = 목표</div>
       <div id="kcalChart"></div>
     </div>
+    <button class="photo-btn" onclick="shareCard()">📤 주간 리포트 카드 만들기 — 인스타에 자랑</button>
   </section>
 </div>
 
@@ -354,6 +352,10 @@
     <h3>이 정도 먹었어요?</h3>
     <img class="preview" id="photoPreview">
     <input class="txt-input" id="photoName" placeholder="이름 (선택, 예: 점심 도시락)">
+    <div class="chip-row" style="margin-top:12px;">
+      <button class="chip" id="ppNo" onclick="setPhotoProtein(false)">단백질 반찬 없음</button>
+      <button class="chip" id="ppYes" onclick="setPhotoProtein(true)">🍗 고기·생선·계란 있음</button>
+    </div>
     <div class="portion-row">
       <button class="portion" onclick="savePhotoMeal(300,15,30,12)"><div class="pn">가볍게</div><div class="pk">~300 kcal · P15 C30 F12</div></button>
       <button class="portion" onclick="savePhotoMeal(500,25,55,18)"><div class="pn">보통</div><div class="pk">~500 kcal · P25 C55 F18</div></button>
@@ -441,9 +443,17 @@
 
   <div class="flabel">목표 — 얼마나 먹을까</div>
   <div class="seg" id="segMode">
-    <button data-v="-500" onclick="setSeg('segMode','-500')">감량 −500</button>
-    <button data-v="0" onclick="setSeg('segMode','0')">유지</button>
-    <button data-v="300" onclick="setSeg('segMode','300')">증량 +300</button>
+    <button data-v="cut" onclick="setSeg('segMode','cut')">감량</button>
+    <button data-v="keep" onclick="setSeg('segMode','keep')">유지</button>
+    <button data-v="bulk" onclick="setSeg('segMode','bulk')">증량 +300</button>
+  </div>
+  <div id="cutRow">
+    <div class="flabel">감량 강도 — 몸에 맞게</div>
+    <div class="seg" id="segCut">
+      <button data-v="-300" onclick="setSeg('segCut','-300')">완만 −300</button>
+      <button data-v="-500" onclick="setSeg('segCut','-500')">보통 −500</button>
+      <button data-v="-700" onclick="setSeg('segCut','-700')">공격적 −700</button>
+    </div>
   </div>
 
   <div class="flabel">스타일 — 어떻게 먹을까</div>
@@ -612,10 +622,19 @@ function currentGoal(){
   if(S.condition[todayKey()]==='refeed') g = Math.round(g*1.1); // 리피드 데이 +10%
   return Math.max(1100, g);
 }
+/* 단백질: 체지방률을 알면 제지방량(LBM) 기준 — 감량기 근손실 방지에 더 정확 */
+function proteinCalc(w, bf, adjust){
+  if(bf > 0){
+    const lbm = w*(1-bf/100);
+    return Math.round(lbm * (adjust<0 ? 2.4 : adjust>0 ? 2.2 : 2.0)); // LBM 기준
+  }
+  return Math.round(w * (adjust<0 ? 2.2 : adjust>0 ? 2.0 : 1.8));      // 체중 기준 폴백
+}
 function proteinTarget(){
   const w = lastWeight() || (S.profile && S.profile.weight) || 70;
-  const per = S.profile ? (S.profile.adjust<0 ? 2.2 : S.profile.adjust>0 ? 2.0 : 1.8) : 1.6;
-  return Math.round(w*per);
+  const bf = latestBf() || (S.profile && S.profile.bf) || 0;
+  if(!S.profile) return Math.round(w*1.6);
+  return proteinCalc(w, bf, S.profile.adjust);
 }
 /* 매크로: 단백질 g/kg 우선 확보 → 남은 kcal을 스타일 비율로 탄수/지방 분배 */
 const CARB_RATIO = { balanced:0.5, lowcarb:0.25, hicarb:0.65 };
@@ -675,8 +694,12 @@ function addMeal(name, kcal, p, c, f, photo, skipLearn){
     slot: curSlot, time: nowTime(), photo: photo||null });
   if(!FOODS[name] && !skipLearn) S.custom[name] = [Math.round(kcal), Math.round(p||0), Math.round(c||0), Math.round(f||0)];
   save(); closeSheet(); render();
-  toast(`✓ ${curSlot} · ${name} · ${Math.round(kcal)} kcal`);
+  // 즉각 피드백: 기록 → 바로 보상
+  const ts = todaySum(), pT = proteinTarget();
+  const pct = Math.min(Math.round(ts.p/pT*100), 999);
+  toast(pct >= 100 ? `✓ ${name} · 단백질 목표 달성 💪` : `✓ ${name} · 단백질 ${pct}% (${ts.p}/${pT}g)`);
 }
+function dismissTip(){ S.tipHome = 1; save(); render(); }
 
 /* ============ 분량 조절 (그램 / 스쿱·개 / 인분) — 직접 입력 가능 ============ */
 function openPortion(name,k,p,c,f){
@@ -814,14 +837,21 @@ document.getElementById('photoInput').addEventListener('change', e=>{
     cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
     window._photo = cv.toDataURL('image/jpeg',0.6);
     document.getElementById('photoPreview').src = window._photo;
+    setPhotoProtein(false);
     document.getElementById('stepMain').classList.add('hidden');
     document.getElementById('stepPhoto').classList.remove('hidden');
   };
   img.src = URL.createObjectURL(file);
   e.target.value='';
 });
+function setPhotoProtein(yes){
+  window._photoP = yes;
+  document.getElementById('ppYes').classList.toggle('on', yes);
+  document.getElementById('ppNo').classList.toggle('on', !yes);
+}
 function savePhotoMeal(kcal,p,c,f){
   const name = document.getElementById('photoName').value.trim() || '사진 기록';
+  if(window._photoP){ p += 12; kcal += 60; } // 단백질 반찬 보정
   addMeal(name, kcal, p, c, f, window._photo);
   document.getElementById('photoName').value='';
 }
@@ -876,6 +906,22 @@ function saveWeightInput(){
   if(!isNaN(n) && n>20 && n<300) setWeight(n); else render();
 }
 function lastWeight(){ const ks=Object.keys(S.weights).sort().reverse(); return ks.length?S.weights[ks[0]]:null; }
+/* 7일 이동평균 기반 주간 추세 — 일일 변동(수분)이 아니라 진짜 방향 */
+function maAt(dayKey){ // 해당 날짜 기준 직전 7일 이동평균
+  const end = new Date(dayKey).getTime();
+  const vals = Object.keys(S.weights)
+    .filter(k=>{ const t=new Date(k).getTime(); return t<=end && t>end-7*86400000; })
+    .map(k=>S.weights[k]);
+  return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
+}
+function weightTrend(){
+  const ks = Object.keys(S.weights).sort();
+  if(ks.length < 4) return null;
+  const first = maAt(ks[Math.min(3,ks.length-1)]), last = maAt(ks[ks.length-1]);
+  const span = (new Date(ks[ks.length-1]) - new Date(ks[Math.min(3,ks.length-1)]))/86400000;
+  if(!first || !last || span < 5) return null;
+  return { perWeek: Math.round((last-first)/span*7*100)/100, spanDays: Math.round(span) };
+}
 function prevWeight(){ const ks=Object.keys(S.weights).sort().reverse().filter(k=>k!==todayKey()); return ks.length?S.weights[ks[0]]:null; }
 
 /* ============ 체지방 기록 (몸무게와 동일하게 매일) ============ */
@@ -906,6 +952,11 @@ function recommend(){
   if(cond==='refeed') prefix += `리피드 데이 🍚 목표 +10%, 탄수 위주로. 죄책감 금지 — 이건 전략입니다. `;
   else if(cond==='tired') prefix += `피곤한 날 — 비타민B·철분 위주로 드세요. `;
   else if(cond==='stress') prefix += `스트레스엔 맵고 뜨거운 게 답. 대신 가볍게. `;
+  else if(cond==='period') prefix += `생리 주기 — 수분으로 1~2kg 출렁이는 게 정상입니다. 체중 숫자는 무시하고 기록만 유지하세요. `;
+  // 정체기 감지: 2주 이상 추세가 안 움직이면 능동 제안
+  const tr = weightTrend();
+  if(S.profile.adjust<0 && tr && tr.spanDays>=14 && Math.abs(tr.perWeek)<0.15 && cond!=='period')
+    prefix += `⚖️ 추세가 2주째 정체 — TDEE가 적응했을 수 있어요. 감량 강도를 한 단계 올리거나, 1주 유지식(다이어트 브레이크) 후 재개를 고려하세요. `;
 
   if(left <= 0 && pLeft <= 0) return prefix+`칼로리, 단백질 모두 완료. 오늘은 끝났습니다 — 주방 문 닫고 회복하세요. 💪`;
   if(left <= 0) return prefix+`칼로리 <b>${-left} kcal</b> 초과. 내일 목표가 자동으로 조정되니 오늘은 잊으세요. 물 많이 드시고요.`;
@@ -955,15 +1006,41 @@ function render(){
   setBar('barC','valC',s.c,t.c,'#ff9500');
   setBar('barF','valF',s.f,t.f,'#ff9500');
 
-  // condition chips
+  // condition chips (여성 프로필이면 생리주기 추가)
   const curCond = S.condition[todayKey()];
-  document.getElementById('condRow').innerHTML = Object.entries(CONDS).map(([k,label])=>
+  const condList = {...CONDS, ...(S.profile && S.profile.sex==='f' ? {period:'🌙 생리'} : {})};
+  document.getElementById('condRow').innerHTML = Object.entries(condList).map(([k,label])=>
     `<button class="cond-chip ${curCond===k?'on':''}" onclick="setCond('${k}')">${label}</button>`).join('');
 
   document.getElementById('reco').innerHTML = recommend();
 
-  // setup banner (프로필 없으면 노출)
-  document.getElementById('setupBanner').classList.toggle('hidden', !!S.profile);
+  // 온보딩: 가치 먼저(3초 기록), 프로필은 그 다음
+  const sb = document.getElementById('setupBanner');
+  const totalMeals = Object.values(S.meals).flat().length;
+  if(S.profile){
+    sb.classList.add('hidden');
+  } else if(totalMeals === 0){
+    sb.classList.remove('hidden');
+    sb.innerHTML = `<div style="padding:20px;border-radius:16px;background:#111;color:#fff;line-height:1.6;">
+      <div style="font-size:19px;font-weight:800;letter-spacing:-0.5px;">검색 없음 · 로그인 없음 · 광고 없음</div>
+      <div style="font-size:14px;color:#98989f;margin-top:4px;">뭐 먹었는지 탭 한 번, 3초면 끝.</div>
+      <button style="width:100%;margin-top:14px;padding:14px;border-radius:12px;border:none;background:#30d158;color:#111;font-size:16px;font-weight:800;cursor:pointer;" onclick="openSheet()">＋ 방금 뭐 드셨어요?</button>
+    </div>`;
+  } else {
+    sb.classList.remove('hidden');
+    sb.innerHTML = `<button style="width:100%;padding:16px;border-radius:16px;border:none;background:#111;color:#fff;font-size:14px;font-weight:700;cursor:pointer;text-align:left;line-height:1.5;" onclick="openSettings()">
+      🎯 목표 대비 얼마나 먹었는지 보려면 — <span style="color:#30d158;">30초 프로필 설정</span></button>`;
+  }
+
+  // 홈 화면 설치 유도 (첫 기록 후 1회)
+  const tip = document.getElementById('installTip');
+  if(totalMeals >= 1 && !S.tipHome){
+    tip.classList.remove('hidden');
+    tip.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:#f2f2f7;font-size:12.5px;line-height:1.5;color:#3a3a3c;">
+      <span style="flex:1;">📌 <b>홈 화면에 추가</b>하면 앱처럼 열리고 기록도 안전하게 보관돼요 — 공유 버튼 → '홈 화면에 추가'</span>
+      <button style="border:none;background:none;color:#c7c7cc;font-size:14px;cursor:pointer;" onclick="dismissTip()">✕</button>
+    </div>`;
+  } else tip.classList.add('hidden');
 
   // diary (끼니별 그룹 — 커스텀 슬롯 포함)
   const meals = S.meals[todayKey()]||[];
@@ -1094,11 +1171,34 @@ function renderTrend(){
     const path=pts.map((p,j)=>(j?'L':'M')+x(p.i).toFixed(1)+' '+y(p.v).toFixed(1)).join(' ');
     svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%">`;
     if(gw) svg+=`<line x1="${P}" y1="${y(gw).toFixed(1)}" x2="${W-P}" y2="${y(gw).toFixed(1)}" stroke="#30d158" stroke-width="1.5" stroke-dasharray="4 4"/><text x="${W-P}" y="${(y(gw)-4).toFixed(1)}" font-size="9" fill="#30d158" text-anchor="end">목표 ${gw}</text>`;
+    // 7일 이동평균 추세선 (초록 점선)
+    const maPts = pts.map(p=>({i:p.i, v:maAt(keyOffset(p.i-13))})).filter(p=>p.v!==null);
+    if(maPts.length>=2){
+      const maPath = maPts.map((p,j)=>(j?'L':'M')+x(p.i).toFixed(1)+' '+y(Math.min(mx,Math.max(mn,p.v))).toFixed(1)).join(' ');
+      svg+=`<path d="${maPath}" fill="none" stroke="#30d158" stroke-width="2" stroke-dasharray="5 4" stroke-linecap="round"/>`;
+    }
     svg+=`<path d="${path}" fill="none" stroke="#111" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`
       + pts.map(p=>`<circle cx="${x(p.i).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="3.5" fill="#111"/>`).join('')
       + `<text x="${P}" y="12" font-size="10" fill="#8e8e93">${mx.toFixed(1)}</text><text x="${P}" y="${H-2}" font-size="10" fill="#8e8e93">${mn.toFixed(1)}</text></svg>`;
   } else svg=`<div class="empty" style="padding:16px 0">몸무게를 2일 이상 기록하면 그래프가 나와요</div>`;
   document.getElementById('weightChart').innerHTML=svg;
+
+  // 추세 해석 코멘트 — 일일 변동 멘붕 방지
+  const tr = weightTrend();
+  const note = document.getElementById('wTrendNote');
+  if(!tr){ note.textContent = ''; }
+  else {
+    const pw = tr.perWeek;
+    const pwStr = (pw>0?'+':'')+pw;
+    if(S.profile && S.profile.adjust<0){
+      if(pw <= -0.15) note.innerHTML = `추세 <b>${pwStr}kg/주</b> — 잘 가고 있어요. 일일 변동은 대부분 수분·글리코겐입니다.`;
+      else if(Math.abs(pw)<0.15 && tr.spanDays>=14) note.innerHTML = `⚖️ 추세가 <b>${tr.spanDays}일째 정체</b> — TDEE 적응 가능성. 홈 화면 코치 노트를 확인하세요.`;
+      else if(pw>=0.15) note.innerHTML = `추세 <b>${pwStr}kg/주</b> — 올라가는 중. 기록 누락이 없는지 점검해보세요.`;
+      else note.innerHTML = `일일 숫자 말고 초록 점선(추세)을 믿으세요. 현재 <b>${pwStr}kg/주</b>.`;
+    } else {
+      note.innerHTML = `주간 추세 <b>${pwStr}kg</b> — 일일 변동 말고 이 숫자를 보세요.`;
+    }
+  }
 
   // bodyfat chart
   const bpts=[];
@@ -1182,6 +1282,7 @@ function setSeg(id, v){
   document.querySelectorAll('#'+id+' button').forEach(b=>b.classList.toggle('on', b.dataset.v===v));
   if(id==='segSex') syncSexUI();
   if(id==='segGoalType') syncGoalTypeUI();
+  if(id==='segMode') document.getElementById('cutRow').classList.toggle('hidden', v!=='cut');
   previewTDEE();
 }
 function syncGoalTypeUI(){
@@ -1262,7 +1363,8 @@ function readForm(){
   const goalBf = parseFloat(document.getElementById('pGoalBf').value) || null;
   const bf = parseFloat(document.getElementById('pBf').value) || 0;
   const activity = parseInt(document.getElementById('pActivity').value);
-  const adjust = parseInt(segVal('segMode')) || 0;
+  const mode = segVal('segMode');
+  const adjust = mode==='cut' ? (parseInt(segVal('segCut')) || -500) : mode==='bulk' ? 300 : 0;
   const macro = CARB_RATIO[segVal('segMacro')] !== undefined ? segVal('segMacro') : 'balanced';
   if(!sex || !age || !height || !weight) return null;
   return { sex, age, height, weight, goalType, goalWeight, goalBf, bf, activity, adjust, macro };
@@ -1277,8 +1379,7 @@ function previewTDEE(){
   document.getElementById('tvTdee').textContent = r.tdee.toLocaleString();
   document.getElementById('tvGoal').textContent = goal.toLocaleString();
 
-  const per = p.adjust<0?2.2:p.adjust>0?2.0:1.8;
-  const pT = Math.round(p.weight*per);
+  const pT = proteinCalc(p.weight, p.bf, p.adjust);
   const rem = Math.max(goal - pT*4, 200);
   const rr = CARB_RATIO[p.macro];
   document.getElementById('tvP').textContent = pT+'g';
@@ -1286,7 +1387,10 @@ function previewTDEE(){
   document.getElementById('tvF').textContent = Math.round(rem*(1-rr)/9)+'g';
 
   const bmi = Math.round(p.weight/Math.pow(p.height/100,2)*10)/10;
-  let eta = `BMI ${bmi} · ${bmi<18.5?'저체중':bmi<23?'정상':bmi<25?'과체중':'비만'} (아시아 기준)`;
+  let eta = '';
+  if(goal <= r.bmr) eta += `<span style="color:#ff3b30;font-weight:700;">⚠️ 목표가 기초대사량(${r.bmr.toLocaleString()}) 아래입니다 — 감량 강도를 낮추세요. 근손실·요요의 지름길입니다.</span><br>`;
+  if(p.bf > 0) eta += `단백질은 제지방량(LBM ${Math.round(p.weight*(1-p.bf/100))}kg) 기준으로 계산됩니다<br>`;
+  eta += `BMI ${bmi} · ${bmi<18.5?'저체중':bmi<23?'정상':bmi<25?'과체중':'비만'} (아시아 기준)`;
   const perWeek = p.adjust*7/7700; // kg/주 (음수면 감량)
   if(p.adjust!==0){
     if(p.goalType==='bf' && p.goalBf){
@@ -1331,11 +1435,12 @@ function openSettings(){
     document.getElementById('pGoalBf').value = p.goalBf || '';
     document.getElementById('pBf').value = latestBf() || p.bf || '';
     document.getElementById('pActivity').value = p.activity;
-    setSeg('segMode', String(p.adjust));
+    setSeg('segMode', p.adjust<0 ? 'cut' : p.adjust>0 ? 'bulk' : 'keep');
+    setSeg('segCut', p.adjust<0 ? String(p.adjust) : '-500');
     setSeg('segMacro', p.macro || 'balanced');
     setSeg('segGoalType', p.goalType || 'weight');
   } else {
-    setSeg('segSex','m'); setSeg('segMode','-500'); setSeg('segMacro','balanced'); setSeg('segGoalType','weight');
+    setSeg('segSex','m'); setSeg('segMode','cut'); setSeg('segCut','-500'); setSeg('segMacro','balanced'); setSeg('segGoalType','weight');
     const lw = lastWeight();
     if(lw) document.getElementById('pWeight').value = lw;
   }
@@ -1373,9 +1478,59 @@ document.getElementById('importInput').addEventListener('change', e=>{
   e.target.value='';
 });
 
+/* ============ 주간 리포트 공유 카드 (인스타 스토리용) ============ */
+function shareCard(){
+  const W=1080, H=1350;
+  const cv = document.createElement('canvas'); cv.width=W; cv.height=H;
+  const x = cv.getContext('2d');
+  const F = "-apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif";
+  x.fillStyle='#fff'; x.fillRect(0,0,W,H);
+
+  // 로고
+  x.fillStyle='#111'; x.font='900 96px '+F; x.textBaseline='alphabetic';
+  x.fillText('린핏', 90, 190);
+  x.fillStyle='#30d158'; x.fillText('.', 90 + x.measureText('린핏').width, 190);
+  x.fillStyle='#8e8e93'; x.font='600 40px '+F;
+  const d=new Date(), wk=keyOffset(-6);
+  x.fillText(`${wk.slice(5).replace('-','.')} – ${todayKey().slice(5).replace('-','.')} 주간 리포트`, 90, 260);
+
+  // 스탯 계산
+  let sum=0, pSum=0, days=0;
+  for(let i=-6;i<=0;i++){ const m=S.meals[keyOffset(i)]; if(m&&m.length){ sum+=m.reduce((a,b)=>a+b.kcal,0); pSum+=m.reduce((a,b)=>a+(b.p||0),0); days++; } }
+  const tr = weightTrend();
+  const pT = proteinTarget();
+  const stats = [
+    ['체중 추세', tr ? `${tr.perWeek>0?'+':''}${tr.perWeek} kg/주` : '기록 중', tr && tr.perWeek<0 ? '#30d158' : '#111'],
+    ['단백질 평균 달성률', days ? Math.min(Math.round((pSum/days)/pT*100),999)+'%' : '–', '#111'],
+    ['하루 평균', days ? Math.round(sum/days).toLocaleString()+' kcal' : '–', '#111'],
+    ['연속 기록', '🔥 '+streak()+'일', '#111']
+  ];
+  stats.forEach(([label, val, color], i)=>{
+    const y0 = 420 + i*210;
+    x.fillStyle='#8e8e93'; x.font='700 42px '+F; x.fillText(label, 90, y0);
+    x.fillStyle=color; x.font='900 110px '+F; x.fillText(val, 90, y0+125);
+  });
+
+  x.strokeStyle='#f2f2f7'; x.lineWidth=3;
+  x.beginPath(); x.moveTo(90,1240); x.lineTo(W-90,1240); x.stroke();
+  x.fillStyle='#8e8e93'; x.font='600 38px '+F;
+  x.fillText('3초 식단기록 · leanfit-app.github.io', 90, 1305);
+
+  cv.toBlob(async b=>{
+    if(!b){ toast('카드 생성 실패'); return; }
+    const f = new File([b], 'linfit-week.png', {type:'image/png'});
+    if(navigator.canShare && navigator.canShare({files:[f]})){
+      try { await navigator.share({files:[f], title:'린핏 주간 리포트'}); } catch(_){}
+    } else {
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(b); a.download='린핏-주간리포트.png';
+      document.body.appendChild(a); a.click(); a.remove();
+      toast('이미지 저장됨 📤');
+    }
+  }, 'image/png');
+}
+
 render();
-// 첫 실행: 프로필 없으면 설정부터 (성별·체지방·활동량)
-if(!S.profile) setTimeout(openSettings, 600);
 </script>
 </body>
 </html>
