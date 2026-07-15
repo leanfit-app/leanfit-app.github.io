@@ -1021,15 +1021,15 @@ function render(){
     sb.classList.add('hidden');
   } else if(totalMeals === 0){
     sb.classList.remove('hidden');
-    sb.innerHTML = `<div style="padding:20px;border-radius:16px;background:#111;color:#fff;line-height:1.6;">
-      <div style="font-size:19px;font-weight:800;letter-spacing:-0.5px;">검색 없음 · 로그인 없음 · 광고 없음</div>
-      <div style="font-size:14px;color:#98989f;margin-top:4px;">뭐 먹었는지 탭 한 번, 3초면 끝.</div>
-      <button style="width:100%;margin-top:14px;padding:14px;border-radius:12px;border:none;background:#30d158;color:#111;font-size:16px;font-weight:800;cursor:pointer;" onclick="openSheet()">＋ 방금 뭐 드셨어요?</button>
+    sb.innerHTML = `<div style="padding:18px;border-radius:16px;border:1.5px solid #e5e5ea;line-height:1.6;">
+      <div style="font-size:15px;font-weight:600;color:#3a3a3c;">뭐 먹었는지 탭 한 번 — 3초면 기록 끝.</div>
+      <button style="width:100%;margin-top:12px;padding:14px;border-radius:12px;border:none;background:#111;color:#fff;font-size:15px;font-weight:700;cursor:pointer;" onclick="openSheet()">＋ 방금 뭐 드셨어요?</button>
+      <button style="width:100%;margin-top:8px;padding:10px;border-radius:12px;border:none;background:none;color:#8e8e93;font-size:13px;font-weight:600;cursor:pointer;" onclick="openSettings()">👤 내 목표 설정 — 성별 · 체지방 · 활동량 (30초)</button>
     </div>`;
   } else {
     sb.classList.remove('hidden');
-    sb.innerHTML = `<button style="width:100%;padding:16px;border-radius:16px;border:none;background:#111;color:#fff;font-size:14px;font-weight:700;cursor:pointer;text-align:left;line-height:1.5;" onclick="openSettings()">
-      🎯 목표 대비 얼마나 먹었는지 보려면 — <span style="color:#30d158;">30초 프로필 설정</span></button>`;
+    sb.innerHTML = `<button style="width:100%;padding:15px;border-radius:16px;border:1.5px solid #e5e5ea;background:none;font-size:13.5px;font-weight:600;color:#3a3a3c;cursor:pointer;text-align:left;line-height:1.5;" onclick="openSettings()">
+      👤 목표 대비 얼마나 먹었는지 보려면 — <b>30초 프로필 설정</b> (성별·체지방·활동량)</button>`;
   }
 
   // 홈 화면 설치 유도 (첫 기록 후 1회)
