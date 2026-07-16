@@ -186,6 +186,9 @@
   .eta { font-size:12px; color:#8e8e93; text-align:center; margin-bottom:14px; line-height:1.5; }
   .eta b { color:#111; }
   .save-btn { width:100%; padding:16px; border-radius:14px; border:none; background:#111; color:#fff; font-size:16px; font-weight:700; cursor:pointer; }
+  .g-sec { background:#f2f2f7; border-radius:14px; padding:14px 16px; margin-bottom:10px; }
+  .g-title { font-size:13px; font-weight:800; margin-bottom:6px; }
+  .g-body { font-size:13px; line-height:1.7; color:#3a3a3c; }
   .helper-link {
     border:none; background:none; color:#007aff; font-size:11px; font-weight:700;
     cursor:pointer; padding:0; margin-left:4px;
@@ -228,6 +231,7 @@
   </div>
   <div style="display:flex; align-items:center; gap:14px;">
     <span class="streak" id="streak"></span>
+    <button class="gear" onclick="openGuide()" style="font-size:17px;">📖</button>
     <button class="gear" onclick="openSettings()">⚙︎</button>
   </div>
 </header>
@@ -484,6 +488,78 @@
   </div>
   <div style="font-size:11px;color:#8e8e93;line-height:1.5;">내보낸 파일을 카톡 '나에게 보내기'로 보관하세요. 불러오면 이 기기의 기록이 백업 파일 내용으로 교체됩니다.</div>
   <input type="file" id="importInput" accept=".json,application/json" class="hidden">
+</div>
+
+<!-- GUIDE SHEET -->
+<div class="sheet" id="guideSheet">
+  <div class="grabber"></div>
+  <h3>식단 가이드 <span style="color:#30d158;">.</span></h3>
+
+  <div class="g-sec">
+    <div class="g-title">1 · 식단 짜는 순서</div>
+    <div class="g-body">
+      ① 칼로리 예산 — ⚙︎에서 자동 계산<br>
+      ② <b>단백질부터 확보</b> — 단백질은 목표, 나머지는 예산<br>
+      ③ 탄수화물 — 양은 남은 예산, <b>종류는 시간대</b>로<br>
+      ④ 지방 — <b>75%는 생선·아보카도·견과류</b>에서
+    </div>
+  </div>
+
+  <div class="g-sec">
+    <div class="g-title">2 · 탄수화물, 시간대로 고르기 (GI)</div>
+    <div class="g-body">
+      <b style="color:#1faa4b;">평소 — 저GI (혈당 안정, 포만감 오래)</b><br>
+      삶은 고구마 ~50 · 현미 ~55 · 오트밀 ~55 · 알덴테 파스타 ~49 · 덜 익은 바나나 ~45 · 사과 ~36<br><br>
+      <b style="color:#ff9500;">운동 직후 — 고GI (빠른 회복, 여기가 제자리)</b><br>
+      감자 ~80 · 흰쌀밥 ~73 · 쌀과자 ~82 · 잘 익은 바나나 ~58
+    </div>
+  </div>
+
+  <div class="g-sec" style="background:#fff3f2;">
+    <div class="g-title">⚠️ 조리법 함정</div>
+    <div class="g-body">
+      <b>군고구마는 저GI가 아닙니다</b> — 구우면 GI 80~90. 다이어트용은 찐/삶은 고구마.<br>
+      반대로 <b>밥·감자는 식히면 GI가 내려갑니다</b>(저항성 전분). 식은 밥·감자 샐러드 OK.
+    </div>
+  </div>
+
+  <div class="g-sec" style="background:#eafaf0;">
+    <div class="g-title">🥔 감자의 재발견</div>
+    <div class="g-body">
+      GI는 높지만 <b>포만감 지수 전 음식 1위</b> (흰빵의 3배), 100g에 80kcal로 밥의 절반. 삶거나 에어프라이어로 조리하면 다이어트 최고 무기. 편의점 구운감자도 OK.
+    </div>
+  </div>
+
+  <div class="g-sec">
+    <div class="g-title">3 · 바꿔치기</div>
+    <div class="g-body">
+      크림파스타·피자 → <b>토마토 파스타</b> (고탄수+고지방 조합 해체)<br>
+      흰빵·주스 → <b>통밀빵·통과일</b> (혈당 롤러코스터 차단)<br>
+      시럽커피·밀크티 → <b>아메리카노·제로 음료</b> (마시는 칼로리 0)<br>
+      햄·소시지 → <b>훈제닭가슴살·참치캔</b> (나트륨 부종 방지)<br>
+      야식 라면 → <b>계란+야채, 그릭요거트</b> (수면 중 지방분해 보호)
+    </div>
+  </div>
+
+  <div class="g-sec">
+    <div class="g-title">4 · 하루 조립 예시</div>
+    <div class="g-body">
+      <b>아침</b> 오트밀 40g + 그릭요거트 + 베리<br>
+      <b>점심</b> 일반식 OK — 밥 ⅔공기 + 고기·생선 반찬, 국물 남기기<br>
+      <b>운동 직후</b> 프로틴 1스쿱 + 감자 1개 (or 흰밥 반 공기)<br>
+      <b>저녁</b> 단백질 200g + 채소, 탄수 소량<br>
+      <b>간식</b> 방울토마토 · 삶은계란 · 견과 한 줌
+    </div>
+  </div>
+
+  <div class="g-sec" style="background:#111;color:#fff;">
+    <div class="g-title" style="color:#30d158;">💡 린핏 사용법</div>
+    <div class="g-body" style="color:#e5e5ea;">
+      위 다섯 끼니를 기록 화면에서 <b>세트로 저장</b>하세요. 그러면 식단 관리가 매일 <b>탭 5번</b>이 됩니다. 지속이 전부입니다.
+    </div>
+  </div>
+
+  <div style="font-size:10.5px;color:#c7c7cc;line-height:1.6;margin-top:14px;">일반적 영양 정보이며 의학적 조언이 아닙니다. GI는 품종·조리법에 따라 달라지는 근사값입니다.</div>
 </div>
 
 <div id="toast"></div>
@@ -1275,6 +1351,11 @@ function closeSheet(){
   document.getElementById('overlay').classList.remove('show');
   document.getElementById('sheet').classList.remove('show');
   document.getElementById('settingsSheet').classList.remove('show');
+  document.getElementById('guideSheet').classList.remove('show');
+}
+function openGuide(){
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('guideSheet').classList.add('show');
 }
 
 /* ============ 설정 ============ */
