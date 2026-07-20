@@ -2,13 +2,21 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="린핏">
 <meta name="theme-color" content="#ffffff">
 <title>린핏 — 3초 식단기록</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23111'/%3E%3Ccircle cx='50' cy='50' r='30' fill='none' stroke='%2330d158' stroke-width='11' stroke-linecap='round' stroke-dasharray='141 189' transform='rotate(-90 50 50)'/%3E%3Ccircle cx='50' cy='50' r='7' fill='%23fff'/%3E%3C/svg%3E">
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23111'/%3E%3Ccircle cx='50' cy='50' r='30' fill='none' stroke='%2330d158' stroke-width='11' stroke-linecap='round' stroke-dasharray='141 189' transform='rotate(-90 50 50)'/%3E%3Ccircle cx='50' cy='50' r='7' fill='%23fff'/%3E%3C/svg%3E">
+<meta name="description" content="3초 식단기록. 가입 없음, 설치 없음, 탭 한 번이면 끝.">
+<meta property="og:title" content="린핏 — 3초 식단기록">
+<meta property="og:description" content="가입 없음 · 설치 없음 · 탭 한 번이면 끝. 칼로리·단백질·체지방까지 알아서.">
+<meta property="og:image" content="https://leanfit-app.github.io/og.png">
+<meta property="og:url" content="https://leanfit-app.github.io">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html, body { height:100%; }
@@ -252,6 +260,7 @@
         <div class="kcal-sub" id="kcalGoalLabel"></div>
       </div>
     </div>
+    <div id="adjPill" class="hidden" style="display:inline-block;margin-top:8px;padding:6px 14px;border-radius:100px;background:#f2f2f7;font-size:12px;font-weight:700;color:#3a3a3c;"></div>
     <div class="macros">
       <div class="mrow"><div class="mname">단백질</div><div class="mbar"><div id="barP"></div></div><div class="mval" id="valP"></div></div>
       <div class="mrow"><div class="mname">탄수</div><div class="mbar"><div id="barC"></div></div><div class="mval" id="valC"></div></div>
@@ -332,7 +341,7 @@
       <div class="quick-grid" id="quickGrid"></div>
     </div>
 
-    <button class="photo-btn" onclick="document.getElementById('photoInput').click()">📷 사진 한 장으로 기록</button>
+    <button class="photo-btn" onclick="document.getElementById('photoInput').click()">📷 사진 찍고 탭 한 번</button>
     <input type="file" id="photoInput" accept="image/*" capture="environment" class="hidden">
   </div>
 
@@ -761,13 +770,13 @@ function addSlot(){
 }
 
 /* ============ 기록 ============ */
-function addMeal(name, kcal, p, c, f, photo, skipLearn){
+function addMeal(name, kcal, p, c, f, photo, skipLearn, est){
   if(photo && photo.startsWith && photo.startsWith('__P__')) photo = (window._freqPhotos||{})[photo]||null;
   const k = todayKey();
   S.meals[k] = S.meals[k] || [];
   S.meals[k].push({ id: Date.now()+'-'+Math.random().toString(36).slice(2,7),
     name, kcal:Math.round(kcal), p:Math.round(p||0), c:Math.round(c||0), f:Math.round(f||0),
-    slot: curSlot, time: nowTime(), photo: photo||null });
+    slot: curSlot, time: nowTime(), photo: photo||null, est: !!est });
   if(!FOODS[name] && !skipLearn) S.custom[name] = [Math.round(kcal), Math.round(p||0), Math.round(c||0), Math.round(f||0)];
   save(); closeSheet(); render();
   // 즉각 피드백: 기록 → 바로 보상
@@ -776,6 +785,18 @@ function addMeal(name, kcal, p, c, f, photo, skipLearn){
   toast(pct >= 100 ? `✓ ${name} · 단백질 목표 달성 💪` : `✓ ${name} · 단백질 ${pct}% (${ts.p}/${pT}g)`);
 }
 function dismissTip(){ S.tipHome = 1; save(); render(); }
+function quickFirstLog(n){ // 온보딩 원탭 기록 → aha moment
+  const [k,p,c,f] = FOODS[n] || [500,20,50,20];
+  curSlot = autoSlot();
+  addMeal(n, k, p, c, f);
+}
+function dismissShareBanner(){ S.shareWk = weekKeyOf(); save(); render(); }
+function weekKeyOf(){ const d=new Date(); return keyOffset(-((d.getDay()+6)%7)); } // 이번 주 월요일
+function quickFirstLog(name){ // 첫 방문 아하 모먼트: 원탭 기록
+  const [k,p,c,f] = normFood(FOODS[name] || [500,15,50,15]);
+  curSlot = autoSlot();
+  addMeal(name, k, p, c, f);
+}
 
 /* ============ 분량 조절 (그램 / 스쿱·개 / 인분) — 직접 입력 가능 ============ */
 function openPortion(name,k,p,c,f){
@@ -928,7 +949,7 @@ function setPhotoProtein(yes){
 function savePhotoMeal(kcal,p,c,f){
   const name = document.getElementById('photoName').value.trim() || '사진 기록';
   if(window._photoP){ p += 12; kcal += 60; } // 단백질 반찬 보정
-  addMeal(name, kcal, p, c, f, window._photo);
+  addMeal(name, kcal, p, c, f, window._photo, false, true); // 추정 기록 표시
   document.getElementById('photoName').value='';
 }
 
@@ -938,7 +959,8 @@ function renderMatches(){
   const box = document.getElementById('matches');
   if(!q){ box.innerHTML=''; return; }
   const all = {...FOODS, ...S.custom};
-  const hits = Object.keys(all).filter(n=>n.includes(q)).slice(0,5);
+  const nq = q.replace(/\s/g,''); // 공백 무시 매칭
+  const hits = Object.keys(all).filter(n=>n.replace(/\s/g,'').includes(nq)).slice(0,5);
   let html = hits.map(n=>{
     const [k,p,c,f] = normFood(all[n]);
     const unit = UNITS[n] ? `1${UNITS[n]}` : SERVING_G[n] ? `${SERVING_G[n]}g` : '1인분';
@@ -1070,6 +1092,15 @@ function render(){
   document.getElementById('ringFg').style.strokeDashoffset = 515*(1-Math.min(s.k/goal,1));
   document.getElementById('ringFg').style.stroke = s.k>goal ? '#ff3b30' : '#111';
 
+  // 과식 자동 차감을 숨기지 않고 보여준다 (신뢰 포인트)
+  const adjP = document.getElementById('adjPill');
+  const adjV = goalAdjust();
+  if(adjV < 0){
+    const yOver = (S.meals[keyOffset(-1)]||[]).reduce((a,m)=>a+m.kcal,0) - baseGoal();
+    adjP.classList.remove('hidden');
+    adjP.textContent = `어제 +${yOver} → 오늘 ${adjV} kcal 반영 ✓`;
+  } else adjP.classList.add('hidden');
+
   // macro bars
   const t = macroTargets();
   const setBar=(bar,val,now,target,goodColor)=>{
@@ -1097,10 +1128,15 @@ function render(){
     sb.classList.add('hidden');
   } else if(totalMeals === 0){
     sb.classList.remove('hidden');
+    const quick = ["김치찌개","치킨","라면","아메리카노"];
     sb.innerHTML = `<div style="padding:18px;border-radius:16px;border:1.5px solid #e5e5ea;line-height:1.6;">
-      <div style="font-size:15px;font-weight:600;color:#3a3a3c;">뭐 먹었는지 탭 한 번 — 3초면 기록 끝.</div>
-      <button style="width:100%;margin-top:12px;padding:14px;border-radius:12px;border:none;background:#111;color:#fff;font-size:15px;font-weight:700;cursor:pointer;" onclick="openSheet()">＋ 방금 뭐 드셨어요?</button>
-      <button style="width:100%;margin-top:8px;padding:10px;border-radius:12px;border:none;background:none;color:#8e8e93;font-size:13px;font-weight:600;cursor:pointer;" onclick="openSettings()">👤 내 목표 설정 — 성별 · 체지방 · 활동량 (30초)</button>
+      <div style="font-size:16px;font-weight:700;">방금 뭐 드셨어요?</div>
+      <div style="font-size:12px;color:#8e8e93;margin-top:1px;">가입 없음 · 설치 없음 · 3초면 끝</div>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+        ${quick.map(n=>`<button style="flex:1 0 40%;padding:12px 6px;border-radius:12px;border:1.5px solid #e5e5ea;background:#fff;font-size:14px;font-weight:700;cursor:pointer;" onclick="quickFirstLog('${n}')">${emojiFor(n)} ${n}</button>`).join('')}
+      </div>
+      <button style="width:100%;margin-top:10px;padding:13px;border-radius:12px;border:none;background:#111;color:#fff;font-size:14px;font-weight:700;cursor:pointer;" onclick="openSheet()">＋ 다른 거 먹었어요</button>
+      <button style="width:100%;margin-top:6px;padding:9px;border-radius:12px;border:none;background:none;color:#8e8e93;font-size:12.5px;font-weight:600;cursor:pointer;" onclick="openSettings()">👤 내 목표 설정 — 성별 · 체지방 · 활동량 (30초)</button>
     </div>`;
   } else {
     sb.classList.remove('hidden');
@@ -1108,13 +1144,21 @@ function render(){
       👤 목표 대비 얼마나 먹었는지 보려면 — <b>30초 프로필 설정</b> (성별·체지방·활동량)</button>`;
   }
 
-  // 홈 화면 설치 유도 (첫 기록 후 1회)
+  // 홈 화면 설치 유도 (첫 기록 후 1회) / 일요일엔 리포트 카드 배너
   const tip = document.getElementById('installTip');
+  const isSunday = new Date().getDay() === 0;
   if(totalMeals >= 1 && !S.tipHome){
     tip.classList.remove('hidden');
     tip.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:#f2f2f7;font-size:12.5px;line-height:1.5;color:#3a3a3c;">
       <span style="flex:1;">📌 <b>홈 화면에 추가</b>하면 앱처럼 열리고 기록도 안전하게 보관돼요 — 공유 버튼 → '홈 화면에 추가'</span>
       <button style="border:none;background:none;color:#c7c7cc;font-size:14px;cursor:pointer;" onclick="dismissTip()">✕</button>
+    </div>`;
+  } else if(isSunday && totalMeals >= 3 && S.shareWk !== weekKeyOf()){
+    tip.classList.remove('hidden');
+    tip.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:#eafaf0;font-size:12.5px;line-height:1.5;color:#3a3a3c;">
+      <span style="flex:1;">📤 일요일이에요 — <b>이번 주 리포트 카드</b> 만들어서 자랑할 시간</span>
+      <button style="border:none;background:#111;color:#fff;font-size:12px;font-weight:700;padding:8px 12px;border-radius:10px;cursor:pointer;" onclick="S.shareWk=weekKeyOf();save();showView('trend');shareCard();">만들기</button>
+      <button style="border:none;background:none;color:#c7c7cc;font-size:14px;cursor:pointer;" onclick="dismissShareBanner()">✕</button>
     </div>`;
   } else tip.classList.add('hidden');
 
@@ -1137,7 +1181,7 @@ function render(){
           <div class="info"><div class="name">${m.name}</div><div class="time">${m.time} · P${m.p||0} C${m.c||0} F${m.f||0}</div></div>
           ${pendingDel===m.id
             ? `<button class="del-btn" onclick="deleteMeal('${m.id}', event)">삭제</button>`
-            : `<div class="kcal">${m.kcal}</div>`}
+            : `<div class="kcal">${m.est?'~':''}${m.kcal}</div>`}
         </div>`).join('');
     });
     ml.innerHTML = html + `<div class="del-hint">기록을 탭하면 삭제 버튼이 나와요</div>`;
@@ -1592,10 +1636,31 @@ function shareCard(){
     x.fillStyle=color; x.font='900 110px '+F; x.fillText(val, 90, y0+125);
   });
 
+  // 체중 스파크라인 — 숫자보다 '내려가는 선'이 자랑거리
+  const wPts=[];
+  for(let i=-13;i<=0;i++){ const k=keyOffset(i); if(S.weights[k]!==undefined) wPts.push(S.weights[k]); }
+  if(wPts.length>=3){
+    const sx=560, sy=390, sw=430, sh=160;
+    const mn=Math.min(...wPts), mx=Math.max(...wPts), rg=Math.max(mx-mn,0.1);
+    x.strokeStyle='#30d158'; x.lineWidth=9; x.lineCap='round'; x.lineJoin='round';
+    x.beginPath();
+    wPts.forEach((v,i)=>{
+      const px = sx + sw*i/(wPts.length-1);
+      const py = sy + sh*(1-(v-mn)/rg);
+      i ? x.lineTo(px,py) : x.moveTo(px,py);
+    });
+    x.stroke();
+    const lastY = sy + sh*(1-(wPts[wPts.length-1]-mn)/rg);
+    x.fillStyle='#30d158';
+    x.beginPath(); x.arc(sx+sw, lastY, 14, 0, 7); x.fill();
+    x.fillStyle='#8e8e93'; x.font='600 30px '+F;
+    x.fillText('최근 14일 체중', sx, sy-30);
+  }
+
   x.strokeStyle='#f2f2f7'; x.lineWidth=3;
   x.beginPath(); x.moveTo(90,1240); x.lineTo(W-90,1240); x.stroke();
   x.fillStyle='#8e8e93'; x.font='600 38px '+F;
-  x.fillText('3초 식단기록 · leanfit-app.github.io', 90, 1305);
+  x.fillText('3초 식단기록 · '+location.host, 90, 1305);
 
   cv.toBlob(async b=>{
     if(!b){ toast('카드 생성 실패'); return; }
@@ -1609,6 +1674,11 @@ function shareCard(){
       toast('이미지 저장됨 📤');
     }
   }, 'image/png');
+}
+
+// PWA: 서비스워커 등록 (오프라인 + iOS 데이터 보존)
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
 
 render();
