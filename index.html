@@ -268,6 +268,7 @@
     </div>
     <div class="cond-row" id="condRow"></div>
     <div class="reco" id="reco"></div>
+    <div class="reco hidden" id="dayWrap" style="background:#111;color:#e5e5ea;"></div>
   </div>
 
   <section>
@@ -785,11 +786,6 @@ function addMeal(name, kcal, p, c, f, photo, skipLearn, est){
   toast(pct >= 100 ? `✓ ${name} · 단백질 목표 달성 💪` : `✓ ${name} · 단백질 ${pct}% (${ts.p}/${pT}g)`);
 }
 function dismissTip(){ S.tipHome = 1; save(); render(); }
-function quickFirstLog(n){ // 온보딩 원탭 기록 → aha moment
-  const [k,p,c,f] = FOODS[n] || [500,20,50,20];
-  curSlot = autoSlot();
-  addMeal(n, k, p, c, f);
-}
 function dismissShareBanner(){ S.shareWk = weekKeyOf(); save(); render(); }
 function weekKeyOf(){ const d=new Date(); return keyOffset(-((d.getDay()+6)%7)); } // 이번 주 월요일
 function quickFirstLog(name){ // 첫 방문 아하 모먼트: 원탭 기록
@@ -1128,7 +1124,7 @@ function render(){
     sb.classList.add('hidden');
   } else if(totalMeals === 0){
     sb.classList.remove('hidden');
-    const quick = ["김치찌개","치킨","라면","아메리카노"];
+    const quick = ["김치찌개","치킨","라면","비빔밥"]; // 링이 확 차는 것만 (아하 모먼트)
     sb.innerHTML = `<div style="padding:18px;border-radius:16px;border:1.5px solid #e5e5ea;line-height:1.6;">
       <div style="font-size:16px;font-weight:700;">방금 뭐 드셨어요?</div>
       <div style="font-size:12px;color:#8e8e93;margin-top:1px;">가입 없음 · 설치 없음 · 3초면 끝</div>
@@ -1144,10 +1140,24 @@ function render(){
       👤 목표 대비 얼마나 먹었는지 보려면 — <b>30초 프로필 설정</b> (성별·체지방·활동량)</button>`;
   }
 
-  // 홈 화면 설치 유도 (첫 기록 후 1회) / 일요일엔 리포트 카드 배너
+  // 오늘 마감 정산 — 저녁의 마침표 (리텐션의 심장)
+  const wrapEl = document.getElementById('dayWrap');
+  const hourNow = new Date().getHours();
+  const todayMeals = S.meals[todayKey()]||[];
+  if(S.profile && todayMeals.length>=2 && (hourNow>=20 || hourNow<4)){
+    const kcalScore = Math.max(0, 1 - Math.abs(s.k-goal)/goal);
+    const pScore = Math.min(s.p/Math.max(t.p,1), 1);
+    const score = Math.round((kcalScore*0.5 + pScore*0.5)*100);
+    const msg = score>=80 ? '완벽에 가까운 하루였습니다' : score>=60 ? '충분히 잘한 하루입니다' : '기록한 것 자체가 이긴 겁니다';
+    wrapEl.classList.remove('hidden');
+    wrapEl.innerHTML = `🌙 오늘 마감 — <b style="color:#30d158;">${score}점</b> · 단백질 ${Math.round(pScore*100)}% · 🔥 ${streak()}일째<br><span style="color:#98989f;">${msg}. 내일 아침 몸무게로 이어가요.</span>`;
+  } else wrapEl.classList.add('hidden');
+
+  // 홈 화면 설치 유도 — 재방문(2일째 기록)부터 / 일요일엔 리포트 카드 배너
   const tip = document.getElementById('installTip');
   const isSunday = new Date().getDay() === 0;
-  if(totalMeals >= 1 && !S.tipHome){
+  const mealDays = Object.keys(S.meals).filter(k=>(S.meals[k]||[]).length).length;
+  if(mealDays >= 2 && !S.tipHome){
     tip.classList.remove('hidden');
     tip.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:#f2f2f7;font-size:12.5px;line-height:1.5;color:#3a3a3c;">
       <span style="flex:1;">📌 <b>홈 화면에 추가</b>하면 앱처럼 열리고 기록도 안전하게 보관돼요 — 공유 버튼 → '홈 화면에 추가'</span>
