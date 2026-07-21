@@ -23,7 +23,7 @@
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", sans-serif;
     background:#fff; color:#111; max-width:480px; margin:0 auto;
-    padding-bottom:90px; user-select:none; -webkit-user-select:none;
+    padding-bottom:calc(160px + env(safe-area-inset-bottom)); user-select:none; -webkit-user-select:none;
   }
   input, textarea { user-select:text; -webkit-user-select:text; }
   header { display:flex; justify-content:space-between; align-items:center; padding:20px 24px 8px; }
@@ -305,7 +305,7 @@
       <h4>칼로리</h4><div class="sub">최근 7일 · 선 = 목표</div>
       <div id="kcalChart"></div>
     </div>
-    <button class="photo-btn" onclick="shareCard()">📤 주간 리포트 카드 만들기 — 인스타에 자랑</button>
+    <button class="photo-btn" style="margin-bottom:30px;" onclick="shareCard()">📤 주간 리포트 카드 만들기 — 인스타에 자랑</button>
   </section>
 </div>
 
