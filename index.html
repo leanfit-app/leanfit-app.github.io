@@ -1124,14 +1124,10 @@ function render(){
     sb.classList.add('hidden');
   } else if(totalMeals === 0){
     sb.classList.remove('hidden');
-    const quick = ["김치찌개","치킨","라면","비빔밥"]; // 링이 확 차는 것만 (아하 모먼트)
     sb.innerHTML = `<div style="padding:18px;border-radius:16px;border:1.5px solid #e5e5ea;line-height:1.6;">
       <div style="font-size:16px;font-weight:700;">방금 뭐 드셨어요?</div>
       <div style="font-size:12px;color:#8e8e93;margin-top:1px;">가입 없음 · 설치 없음 · 3초면 끝</div>
-      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
-        ${quick.map(n=>`<button style="flex:1 0 40%;padding:12px 6px;border-radius:12px;border:1.5px solid #e5e5ea;background:#fff;font-size:14px;font-weight:700;cursor:pointer;" onclick="quickFirstLog('${n}')">${emojiFor(n)} ${n}</button>`).join('')}
-      </div>
-      <button style="width:100%;margin-top:10px;padding:13px;border-radius:12px;border:none;background:#111;color:#fff;font-size:14px;font-weight:700;cursor:pointer;" onclick="openSheet()">＋ 다른 거 먹었어요</button>
+      <button style="width:100%;margin-top:12px;padding:14px;border-radius:12px;border:none;background:#111;color:#fff;font-size:15px;font-weight:700;cursor:pointer;" onclick="openSheet()">＋ 3초 만에 기록해보기</button>
       <button style="width:100%;margin-top:6px;padding:9px;border-radius:12px;border:none;background:none;color:#8e8e93;font-size:12.5px;font-weight:600;cursor:pointer;" onclick="openSettings()">👤 내 목표 설정 — 성별 · 체지방 · 활동량 (30초)</button>
     </div>`;
   } else {
