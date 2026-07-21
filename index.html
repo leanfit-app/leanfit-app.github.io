@@ -233,9 +233,10 @@
 <body>
 
 <header>
-  <div>
+  <div style="position:relative;">
     <div class="wordmark">린핏<span class="wm-dot">.</span></div>
-    <div class="date" id="dateLabel"></div>
+    <div class="date" id="dateLabel" onclick="openDatePick()" style="cursor:pointer;"></div>
+    <input type="date" id="datePick" style="position:absolute;left:0;bottom:0;width:1px;height:1px;opacity:0;border:0;padding:0;" onchange="goToDate(this.value)">
   </div>
   <div style="display:flex; align-items:center; gap:14px;">
     <span class="streak" id="streak"></span>
@@ -293,12 +294,12 @@
       <div class="stat"><div class="v" id="stBfChange">–</div><div class="l">14일 체지방</div></div>
     </div>
     <div class="chart-card">
-      <h4>몸무게</h4><div class="sub" id="wChartSub">최근 14일 · 초록 점선 = 7일 평균 추세</div>
+      <h4>몸무게 <span id="wNow" style="float:right;font-weight:800;"></span></h4><div class="sub" id="wChartSub">최근 14일 · 초록 점선 = 7일 평균 추세</div>
       <div id="weightChart"></div>
       <div class="sub" id="wTrendNote" style="margin:8px 0 0;color:#3a3a3c;line-height:1.5;"></div>
     </div>
     <div class="chart-card" id="bfChartCard">
-      <h4>체지방률</h4><div class="sub">최근 14일</div>
+      <h4>체지방률 <span id="bfNow" style="float:right;font-weight:800;color:#ff9500;"></span></h4><div class="sub">최근 14일</div>
       <div id="bfChart"></div>
     </div>
     <div class="chart-card">
@@ -323,10 +324,6 @@
   <div id="stepMain">
     <h3>뭐 먹었어요?</h3>
 
-    <div class="chip-row" style="margin-bottom:8px;">
-      <button class="chip on" id="dayToday" onclick="pickDay(0)">오늘</button>
-      <button class="chip" id="dayYest" onclick="pickDay(-1)">어제 (깜빡했어요)</button>
-    </div>
     <div class="chip-row" id="slotChips" style="flex-wrap:wrap;"></div>
     <div id="slotAddRow" class="hidden" style="display:flex;gap:8px;margin-bottom:14px;">
       <input class="txt-input" id="slotAddInput" placeholder="끼니 이름 (예: 운동 후, 야식)" style="flex:1;">
@@ -737,13 +734,22 @@ function macroTargets(){
   return { p:pT, c:Math.round(rem*r/4), f:Math.round(rem*(1-r)/9) };
 }
 
-/* ============ 기록 날짜 (오늘/어제 소급) ============ */
-let logDate = todayKey();
-function pickDay(off){
-  logDate = keyOffset(off);
-  document.getElementById('dayToday').classList.toggle('on', off===0);
-  document.getElementById('dayYest').classList.toggle('on', off!==0);
+/* ============ 날짜 탐색 — 헤더 날짜 탭 → 캘린더 → 과거 기록 보기/소급 기록 ============ */
+let viewDate = todayKey();
+function openDatePick(){
+  const dp = document.getElementById('datePick');
+  dp.max = todayKey();
+  dp.value = viewDate;
+  if(dp.showPicker) dp.showPicker(); else dp.click();
 }
+function goToDate(v){
+  if(!v || v > todayKey()) return;
+  viewDate = v;
+  pendingDel = null; weightInputOpen = false; bfInputOpen = false;
+  render();
+}
+function backToToday(){ goToDate(todayKey()); }
+function fmtDate(k){ const d=new Date(k+'T00:00:00'); return `${d.getMonth()+1}월 ${d.getDate()}일 ${['일','월','화','수','목','금','토'][d.getDay()]}요일`; }
 
 /* ============ 끼니 슬롯 (자유 추가) ============ */
 let curSlot = autoSlot();
@@ -785,16 +791,16 @@ function addSlot(){
 /* ============ 기록 ============ */
 function addMeal(name, kcal, p, c, f, photo, skipLearn, est){
   if(photo && photo.startsWith && photo.startsWith('__P__')) photo = (window._freqPhotos||{})[photo]||null;
-  const k = logDate || todayKey();
-  const isYest = k !== todayKey();
+  const k = viewDate;
+  const isPast = k !== todayKey();
   S.meals[k] = S.meals[k] || [];
   S.meals[k].push({ id: Date.now()+'-'+Math.random().toString(36).slice(2,7),
     name, kcal:Math.round(kcal), p:Math.round(p||0), c:Math.round(c||0), f:Math.round(f||0),
-    slot: curSlot, time: isYest ? '소급 기록' : nowTime(), photo: photo||null, est: !!est });
+    slot: curSlot, time: isPast ? '소급 기록' : nowTime(), photo: photo||null, est: !!est });
   if(!FOODS[name] && !skipLearn) S.custom[name] = [Math.round(kcal), Math.round(p||0), Math.round(c||0), Math.round(f||0)];
   save(); closeSheet(); render();
   // 즉각 피드백: 기록 → 바로 보상
-  if(isYest){ toast(`✓ 어제 ${curSlot}에 추가됨 · ${name}`); return; }
+  if(isPast){ toast(`✓ ${parseInt(k.slice(5,7))}/${parseInt(k.slice(8,10))} ${curSlot}에 추가됨 · ${name}`); return; }
   const ts = todaySum(), pT = proteinTarget();
   const pct = Math.min(Math.round(ts.p/pT*100), 999);
   toast(pct >= 100 ? `✓ ${name} · 단백질 목표 달성 💪` : `✓ ${name} · 단백질 ${pct}% (${ts.p}/${pT}g)`);
@@ -877,7 +883,7 @@ function saveSet(slot){
 }
 function logSet(name){
   const items = S.sets[name]; if(!items) return;
-  const k = logDate || todayKey();
+  const k = viewDate;
   S.meals[k] = S.meals[k] || [];
   items.forEach(it=>S.meals[k].push({ id: Date.now()+'-'+Math.random().toString(36).slice(2,7),
     name:it.name, kcal:it.kcal, p:it.p, c:it.c, f:it.f, slot:curSlot, time:nowTime(), photo:null }));
@@ -916,7 +922,7 @@ let pendingDel = null;
 function tapMeal(id){ pendingDel = (pendingDel===id) ? null : id; render(); }
 function deleteMeal(id, ev){
   if(ev) ev.stopPropagation();
-  const k = todayKey();
+  const k = viewDate;
   S.meals[k] = (S.meals[k]||[]).filter(m=>m.id!==id);
   pendingDel = null; save(); render(); toast('삭제됨');
 }
@@ -1005,7 +1011,7 @@ function saveCustom(name){
 }
 
 /* ============ 몸무게 ============ */
-function setWeight(v){ S.weights[todayKey()] = Math.round(v*10)/10; save(); render(); }
+function setWeight(v){ S.weights[viewDate] = Math.round(v*10)/10; save(); render(); }
 let weightInputOpen = false;
 function openWeightInput(){ weightInputOpen=true; render(); setTimeout(()=>{ const el=document.getElementById('wInput'); if(el) el.focus(); },100); }
 function saveWeightInput(){
@@ -1034,7 +1040,7 @@ function prevWeight(){ const ks=Object.keys(S.weights).sort().reverse().filter(k
 
 /* ============ 체지방 기록 (몸무게와 동일하게 매일) ============ */
 function setBf(v){
-  S.bodyfat[todayKey()] = Math.round(v*10)/10;
+  S.bodyfat[viewDate] = Math.round(v*10)/10;
   save(); render();
 }
 let bfInputOpen = false;
@@ -1089,14 +1095,15 @@ function streak(){
 
 /* ============ 렌더 ============ */
 function render(){
-  const d = new Date();
-  document.getElementById('dateLabel').textContent =
-    `${d.getMonth()+1}월 ${d.getDate()}일 ${['일','월','화','수','목','금','토'][d.getDay()]}요일`;
+  const isToday = viewDate === todayKey();
+  document.getElementById('dateLabel').innerHTML =
+    (isToday ? '' : '📅 ') + fmtDate(viewDate) + ' <span style="color:#c7c7cc;">▾</span>';
   const st = streak();
   document.getElementById('streak').textContent = st>0 ? `🔥 ${st}일` : '';
 
-  const goal = currentGoal();
-  const s = todaySum();
+  const goal = isToday ? currentGoal() : baseGoal();
+  const vMeals = S.meals[viewDate]||[];
+  const s = vMeals.reduce((a,m)=>({k:a.k+m.kcal, p:a.p+(m.p||0), c:a.c+(m.c||0), f:a.f+(m.f||0)}), {k:0,p:0,c:0,f:0});
   document.getElementById('kcalNow').textContent = s.k.toLocaleString();
   document.getElementById('kcalGoalLabel').textContent = `/ ${goal.toLocaleString()} kcal`;
   document.getElementById('ringFg').style.strokeDashoffset = 515*(1-Math.min(s.k/goal,1));
@@ -1104,7 +1111,7 @@ function render(){
 
   // 과식 자동 차감을 숨기지 않고 보여준다 (신뢰 포인트)
   const adjP = document.getElementById('adjPill');
-  const adjV = goalAdjust();
+  const adjV = isToday ? goalAdjust() : 0;
   if(adjV < 0){
     const yOver = (S.meals[keyOffset(-1)]||[]).reduce((a,m)=>a+m.kcal,0) - baseGoal();
     adjP.classList.remove('hidden');
@@ -1123,18 +1130,19 @@ function render(){
   setBar('barC','valC',s.c,t.c,'#ff9500');
   setBar('barF','valF',s.f,t.f,'#ff9500');
 
-  // condition chips (여성 프로필이면 생리주기 추가)
+  // condition chips (여성 프로필이면 생리주기 추가) — 오늘만
   const curCond = S.condition[todayKey()];
   const condList = {...CONDS, ...(S.profile && S.profile.sex==='f' ? {period:'🌙 생리'} : {})};
-  document.getElementById('condRow').innerHTML = Object.entries(condList).map(([k,label])=>
+  document.getElementById('condRow').innerHTML = !isToday ? '' : Object.entries(condList).map(([k,label])=>
     `<button class="cond-chip ${curCond===k?'on':''}" onclick="setCond('${k}')">${label}</button>`).join('');
 
-  document.getElementById('reco').innerHTML = recommend();
+  document.getElementById('reco').innerHTML = isToday ? recommend()
+    : `📅 지난 날짜를 보는 중입니다 — 지금 기록하면 <b>이 날짜</b>에 추가됩니다. <b style="color:#007aff;cursor:pointer;" onclick="backToToday()">오늘로 돌아가기</b>`;
 
   // 온보딩: 가치 먼저(3초 기록), 프로필은 그 다음
   const sb = document.getElementById('setupBanner');
   const totalMeals = Object.values(S.meals).flat().length;
-  if(S.profile){
+  if(!isToday || S.profile){
     sb.classList.add('hidden');
   } else if(totalMeals === 0){
     sb.classList.remove('hidden');
@@ -1154,7 +1162,7 @@ function render(){
   const wrapEl = document.getElementById('dayWrap');
   const hourNow = new Date().getHours();
   const todayMeals = S.meals[todayKey()]||[];
-  if(S.profile && todayMeals.length>=2 && (hourNow>=20 || hourNow<4)){
+  if(isToday && S.profile && todayMeals.length>=2 && (hourNow>=20 || hourNow<4)){
     const kcalScore = Math.max(0, 1 - Math.abs(s.k-goal)/goal);
     const pScore = Math.min(s.p/Math.max(t.p,1), 1);
     const score = Math.round((kcalScore*0.5 + pScore*0.5)*100);
@@ -1167,7 +1175,9 @@ function render(){
   const tip = document.getElementById('installTip');
   const isSunday = new Date().getDay() === 0;
   const mealDays = Object.keys(S.meals).filter(k=>(S.meals[k]||[]).length).length;
-  if(mealDays >= 2 && !S.tipHome){
+  if(!isToday){
+    tip.classList.add('hidden');
+  } else if(mealDays >= 2 && !S.tipHome){
     tip.classList.remove('hidden');
     tip.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:#f2f2f7;font-size:12.5px;line-height:1.5;color:#3a3a3c;">
       <span style="flex:1;">📌 <b>홈 화면에 추가</b>하면 앱처럼 열리고 기록도 안전하게 보관돼요 — 공유 버튼 → '홈 화면에 추가'</span>
@@ -1182,8 +1192,8 @@ function render(){
     </div>`;
   } else tip.classList.add('hidden');
 
-  // diary (끼니별 그룹 — 커스텀 슬롯 포함)
-  const meals = S.meals[todayKey()]||[];
+  // diary (끼니별 그룹 — 커스텀 슬롯 포함, 선택 날짜 기준)
+  const meals = vMeals;
   const ml = document.getElementById('mealList');
   if(!meals.length){
     ml.innerHTML = `<div class="empty">아직 기록이 없어요.<br>아래 <b>+</b> 를 눌러 3초 만에 기록하세요.</div>`;
@@ -1207,24 +1217,24 @@ function render(){
     ml.innerHTML = html + `<div class="del-hint">기록을 탭하면 삭제 버튼이 나와요</div>`;
   }
 
-  // weight
-  const w = S.weights[todayKey()];
+  // weight (선택 날짜 기준)
+  const w = S.weights[viewDate];
   const wa = document.getElementById('weightArea');
   if(weightInputOpen){
-    const lw = lastWeight() || '';
+    const lw = S.weights[viewDate] || lastWeight() || '';
     wa.innerHTML = `<div class="wcard" style="gap:10px">
       <input class="txt-input" id="wInput" type="number" inputmode="decimal" step="0.1" placeholder="몸무게 (kg)" value="${lw}" style="flex:1;font-size:20px;font-weight:700;">
       <button class="photo-btn" style="width:auto;margin:0;padding:14px 20px;" onclick="saveWeightInput()">저장</button>
     </div>`;
   } else if(w){
-    const pv = prevWeight();
+    const pv = isToday ? prevWeight() : null;
     let delta='';
     if(pv){
       const df=Math.round((w-pv)*10)/10;
       delta = df<0?`<div class="wdelta down">▼ ${Math.abs(df)} kg</div>`:df>0?`<div class="wdelta up">▲ ${df} kg</div>`:`<div class="wdelta flat">변화 없음</div>`;
     }
     let goalLine='';
-    if(S.profile && S.profile.goalType!=='bf' && S.profile.goalWeight){
+    if(isToday && S.profile && S.profile.goalType!=='bf' && S.profile.goalWeight){
       const togo = Math.round((w-S.profile.goalWeight)*10)/10;
       goalLine = togo>0 ? `<div class="wgoal">목표 ${S.profile.goalWeight}kg까지 ${togo}kg</div>`
                : `<div class="wgoal">🎉 목표 체중 도달!</div>`;
@@ -1239,24 +1249,24 @@ function render(){
     wa.innerHTML = `<button class="wempty-btn" onclick="openWeightInput()">＋ 몸무게 기록 (3초)</button>`;
   }
 
-  // body fat (몸무게와 동일 패턴)
-  const bf = S.bodyfat[todayKey()];
+  // body fat (몸무게와 동일 패턴, 선택 날짜 기준)
+  const bf = S.bodyfat[viewDate];
   const ba = document.getElementById('bfArea');
   if(bfInputOpen){
-    const lb = latestBf() || '';
+    const lb = S.bodyfat[viewDate] || latestBf() || '';
     ba.innerHTML = `<div class="wcard" style="gap:10px">
       <input class="txt-input" id="bfInput" type="number" inputmode="decimal" step="0.1" placeholder="체지방률 %" value="${lb}" style="flex:1;font-size:20px;font-weight:700;">
       <button class="photo-btn" style="width:auto;margin:0;padding:14px 20px;" onclick="saveBfInput()">저장</button>
     </div>`;
   } else if(bf){
-    const pb = prevBf();
+    const pb = isToday ? prevBf() : null;
     let delta='';
     if(pb){
       const df=Math.round((bf-pb)*10)/10;
       delta = df<0?`<div class="wdelta down">▼ ${Math.abs(df)}%p</div>`:df>0?`<div class="wdelta up">▲ ${df}%p</div>`:`<div class="wdelta flat">변화 없음</div>`;
     }
     let bfGoalLine='';
-    if(S.profile && S.profile.goalType==='bf' && S.profile.goalBf){
+    if(isToday && S.profile && S.profile.goalType==='bf' && S.profile.goalBf){
       const togo = Math.round((bf-S.profile.goalBf)*10)/10;
       bfGoalLine = togo>0 ? `<div class="wgoal">목표 ${S.profile.goalBf}%까지 ${togo}%p</div>`
                  : `<div class="wgoal">🎉 목표 체지방 도달!</div>`;
@@ -1320,8 +1330,8 @@ function renderTrend(){
     const wLast = pts[pts.length-1];
     svg+=`<path d="${path}" fill="none" stroke="#111" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`
       + pts.map(p=>`<circle cx="${x(p.i).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="3.5" fill="#111"/>`).join('')
-      + `<text x="${Math.min(x(wLast.i), W-P-8).toFixed(1)}" y="${Math.max(y(wLast.v)-9, 13).toFixed(1)}" font-size="11" font-weight="700" fill="#111" text-anchor="end">${wLast.v}kg</text>`
       + `<text x="${P}" y="12" font-size="10" fill="#8e8e93">${mx.toFixed(1)}</text><text x="${P}" y="${H-2}" font-size="10" fill="#8e8e93">${mn.toFixed(1)}</text></svg>`;
+    document.getElementById('wNow').textContent = wLast.v + ' kg';
   } else svg=`<div class="empty" style="padding:16px 0">몸무게를 2일 이상 기록하면 그래프가 나와요</div>`;
   document.getElementById('weightChart').innerHTML=svg;
 
@@ -1360,9 +1370,9 @@ function renderTrend(){
     const bLast = bpts[bpts.length-1];
     bsvg+=`<path d="${path}" fill="none" stroke="#ff9500" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`
       + bpts.map(p=>`<circle cx="${x(p.i).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="3.5" fill="#ff9500"/>`).join('')
-      + `<text x="${Math.min(x(bLast.i), W-P-8).toFixed(1)}" y="${Math.max(y(bLast.v)-9, 13).toFixed(1)}" font-size="11" font-weight="700" fill="#ff9500" text-anchor="end">${bLast.v}%</text>`
       + `<text x="${P}" y="12" font-size="10" fill="#8e8e93">${mx.toFixed(1)}%</text><text x="${P}" y="${H-2}" font-size="10" fill="#8e8e93">${mn.toFixed(1)}%</text></svg>`;
     document.getElementById('bfChart').innerHTML = bsvg;
+    document.getElementById('bfNow').textContent = bLast.v + ' %';
   } else bfCard.classList.add('hidden');
 
   // kcal chart
@@ -1389,7 +1399,6 @@ function showView(v){
   document.getElementById('tabTrend').classList.toggle('on', v==='trend');
 }
 function openSheet(){
-  pickDay(0); // 열 때마다 오늘로 리셋
   curSlot = autoSlot();
   renderChips();
   document.getElementById('slotAddRow').classList.add('hidden');
