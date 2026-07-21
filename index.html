@@ -323,6 +323,10 @@
   <div id="stepMain">
     <h3>뭐 먹었어요?</h3>
 
+    <div class="chip-row" style="margin-bottom:8px;">
+      <button class="chip on" id="dayToday" onclick="pickDay(0)">오늘</button>
+      <button class="chip" id="dayYest" onclick="pickDay(-1)">어제 (깜빡했어요)</button>
+    </div>
     <div class="chip-row" id="slotChips" style="flex-wrap:wrap;"></div>
     <div id="slotAddRow" class="hidden" style="display:flex;gap:8px;margin-bottom:14px;">
       <input class="txt-input" id="slotAddInput" placeholder="끼니 이름 (예: 운동 후, 야식)" style="flex:1;">
@@ -733,6 +737,14 @@ function macroTargets(){
   return { p:pT, c:Math.round(rem*r/4), f:Math.round(rem*(1-r)/9) };
 }
 
+/* ============ 기록 날짜 (오늘/어제 소급) ============ */
+let logDate = todayKey();
+function pickDay(off){
+  logDate = keyOffset(off);
+  document.getElementById('dayToday').classList.toggle('on', off===0);
+  document.getElementById('dayYest').classList.toggle('on', off!==0);
+}
+
 /* ============ 끼니 슬롯 (자유 추가) ============ */
 let curSlot = autoSlot();
 const BASE_SLOTS = ["아침","점심","저녁","간식"];
@@ -773,14 +785,16 @@ function addSlot(){
 /* ============ 기록 ============ */
 function addMeal(name, kcal, p, c, f, photo, skipLearn, est){
   if(photo && photo.startsWith && photo.startsWith('__P__')) photo = (window._freqPhotos||{})[photo]||null;
-  const k = todayKey();
+  const k = logDate || todayKey();
+  const isYest = k !== todayKey();
   S.meals[k] = S.meals[k] || [];
   S.meals[k].push({ id: Date.now()+'-'+Math.random().toString(36).slice(2,7),
     name, kcal:Math.round(kcal), p:Math.round(p||0), c:Math.round(c||0), f:Math.round(f||0),
-    slot: curSlot, time: nowTime(), photo: photo||null, est: !!est });
+    slot: curSlot, time: isYest ? '소급 기록' : nowTime(), photo: photo||null, est: !!est });
   if(!FOODS[name] && !skipLearn) S.custom[name] = [Math.round(kcal), Math.round(p||0), Math.round(c||0), Math.round(f||0)];
   save(); closeSheet(); render();
   // 즉각 피드백: 기록 → 바로 보상
+  if(isYest){ toast(`✓ 어제 ${curSlot}에 추가됨 · ${name}`); return; }
   const ts = todaySum(), pT = proteinTarget();
   const pct = Math.min(Math.round(ts.p/pT*100), 999);
   toast(pct >= 100 ? `✓ ${name} · 단백질 목표 달성 💪` : `✓ ${name} · 단백질 ${pct}% (${ts.p}/${pT}g)`);
@@ -863,7 +877,7 @@ function saveSet(slot){
 }
 function logSet(name){
   const items = S.sets[name]; if(!items) return;
-  const k = todayKey();
+  const k = logDate || todayKey();
   S.meals[k] = S.meals[k] || [];
   items.forEach(it=>S.meals[k].push({ id: Date.now()+'-'+Math.random().toString(36).slice(2,7),
     name:it.name, kcal:it.kcal, p:it.p, c:it.c, f:it.f, slot:curSlot, time:nowTime(), photo:null }));
@@ -1306,7 +1320,7 @@ function renderTrend(){
     const wLast = pts[pts.length-1];
     svg+=`<path d="${path}" fill="none" stroke="#111" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`
       + pts.map(p=>`<circle cx="${x(p.i).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="3.5" fill="#111"/>`).join('')
-      + `<text x="${Math.min(x(wLast.i), W-P-8).toFixed(1)}" y="${(y(wLast.v)-9).toFixed(1)}" font-size="11" font-weight="700" fill="#111" text-anchor="end">${wLast.v}kg</text>`
+      + `<text x="${Math.min(x(wLast.i), W-P-8).toFixed(1)}" y="${Math.max(y(wLast.v)-9, 13).toFixed(1)}" font-size="11" font-weight="700" fill="#111" text-anchor="end">${wLast.v}kg</text>`
       + `<text x="${P}" y="12" font-size="10" fill="#8e8e93">${mx.toFixed(1)}</text><text x="${P}" y="${H-2}" font-size="10" fill="#8e8e93">${mn.toFixed(1)}</text></svg>`;
   } else svg=`<div class="empty" style="padding:16px 0">몸무게를 2일 이상 기록하면 그래프가 나와요</div>`;
   document.getElementById('weightChart').innerHTML=svg;
@@ -1346,7 +1360,7 @@ function renderTrend(){
     const bLast = bpts[bpts.length-1];
     bsvg+=`<path d="${path}" fill="none" stroke="#ff9500" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`
       + bpts.map(p=>`<circle cx="${x(p.i).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="3.5" fill="#ff9500"/>`).join('')
-      + `<text x="${Math.min(x(bLast.i), W-P-8).toFixed(1)}" y="${(y(bLast.v)-9).toFixed(1)}" font-size="11" font-weight="700" fill="#ff9500" text-anchor="end">${bLast.v}%</text>`
+      + `<text x="${Math.min(x(bLast.i), W-P-8).toFixed(1)}" y="${Math.max(y(bLast.v)-9, 13).toFixed(1)}" font-size="11" font-weight="700" fill="#ff9500" text-anchor="end">${bLast.v}%</text>`
       + `<text x="${P}" y="12" font-size="10" fill="#8e8e93">${mx.toFixed(1)}%</text><text x="${P}" y="${H-2}" font-size="10" fill="#8e8e93">${mn.toFixed(1)}%</text></svg>`;
     document.getElementById('bfChart').innerHTML = bsvg;
   } else bfCard.classList.add('hidden');
@@ -1375,6 +1389,7 @@ function showView(v){
   document.getElementById('tabTrend').classList.toggle('on', v==='trend');
 }
 function openSheet(){
+  pickDay(0); // 열 때마다 오늘로 리셋
   curSlot = autoSlot();
   renderChips();
   document.getElementById('slotAddRow').classList.add('hidden');
