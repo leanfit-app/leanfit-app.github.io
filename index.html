@@ -19,7 +19,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-  html, body { height:100%; }
+  html, body { min-height:100%; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", sans-serif;
     background:#fff; color:#111; max-width:480px; margin:0 auto;
@@ -129,8 +129,8 @@
     position:fixed; bottom:0; left:50%; transform:translate(-50%,105%);
     width:100%; max-width:480px; background:#fff; border-radius:24px 24px 0 0;
     z-index:101; transition:transform .3s cubic-bezier(.32,.72,0,1);
-    max-height:85vh; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
-    padding:12px 24px 120px; /* 키보드에 안 가리게 아래 여유 */
+    max-height:85vh; max-height:88dvh; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
+    padding:12px 24px 160px; /* 키보드·탭바에 안 가리게 아래 여유 */
   }
   .sheet.show { transform:translate(-50%,0); }
   .grabber { width:36px; height:5px; border-radius:3px; background:#e5e5ea; margin:0 auto 14px; }
