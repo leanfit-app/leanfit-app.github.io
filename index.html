@@ -1303,8 +1303,10 @@ function renderTrend(){
       const maPath = maPts.map((p,j)=>(j?'L':'M')+x(p.i).toFixed(1)+' '+y(Math.min(mx,Math.max(mn,p.v))).toFixed(1)).join(' ');
       svg+=`<path d="${maPath}" fill="none" stroke="#30d158" stroke-width="2" stroke-dasharray="5 4" stroke-linecap="round"/>`;
     }
+    const wLast = pts[pts.length-1];
     svg+=`<path d="${path}" fill="none" stroke="#111" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`
       + pts.map(p=>`<circle cx="${x(p.i).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="3.5" fill="#111"/>`).join('')
+      + `<text x="${Math.min(x(wLast.i), W-P-8).toFixed(1)}" y="${(y(wLast.v)-9).toFixed(1)}" font-size="11" font-weight="700" fill="#111" text-anchor="end">${wLast.v}kg</text>`
       + `<text x="${P}" y="12" font-size="10" fill="#8e8e93">${mx.toFixed(1)}</text><text x="${P}" y="${H-2}" font-size="10" fill="#8e8e93">${mn.toFixed(1)}</text></svg>`;
   } else svg=`<div class="empty" style="padding:16px 0">몸무게를 2일 이상 기록하면 그래프가 나와요</div>`;
   document.getElementById('weightChart').innerHTML=svg;
@@ -1341,8 +1343,10 @@ function renderTrend(){
     const path=bpts.map((p,j)=>(j?'L':'M')+x(p.i).toFixed(1)+' '+y(p.v).toFixed(1)).join(' ');
     let bsvg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%">`;
     if(gbf) bsvg+=`<line x1="${P}" y1="${y(gbf).toFixed(1)}" x2="${W-P}" y2="${y(gbf).toFixed(1)}" stroke="#30d158" stroke-width="1.5" stroke-dasharray="4 4"/><text x="${W-P}" y="${(y(gbf)-4).toFixed(1)}" font-size="9" fill="#30d158" text-anchor="end">목표 ${gbf}%</text>`;
+    const bLast = bpts[bpts.length-1];
     bsvg+=`<path d="${path}" fill="none" stroke="#ff9500" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`
       + bpts.map(p=>`<circle cx="${x(p.i).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="3.5" fill="#ff9500"/>`).join('')
+      + `<text x="${Math.min(x(bLast.i), W-P-8).toFixed(1)}" y="${(y(bLast.v)-9).toFixed(1)}" font-size="11" font-weight="700" fill="#ff9500" text-anchor="end">${bLast.v}%</text>`
       + `<text x="${P}" y="12" font-size="10" fill="#8e8e93">${mx.toFixed(1)}%</text><text x="${P}" y="${H-2}" font-size="10" fill="#8e8e93">${mn.toFixed(1)}%</text></svg>`;
     document.getElementById('bfChart').innerHTML = bsvg;
   } else bfCard.classList.add('hidden');
